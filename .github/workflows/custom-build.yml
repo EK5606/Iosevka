@@ -7,20 +7,13 @@ on:
   workflow_dispatch: # 允许手动触发该工作流
 
 env:
-  FUSION_NAME: IosevkaTermSS05 Nerd Font Mono + LXGW WenKai Mono Lite
-  FUSION_ID: IosevkaTermSS05NFM+LXGWWenKaiMonoLite
   FUSION_DEVELOPER: Albert
-  FUSION_DESCRIPTION: "The free and open-source font fused with Iosevka and LXGW WenKai"
   FUSION_COPYRIGHT: Copyright 2025-2026, Albert (${{ github.server_url }}/${{ github.repository }})
   FUSION_LICENSE: "This Font Software is licensed under the SIL Open Font License, Version 1.1. This license is available with a FAQ at: https://openfontlicense.org"
   IOSEVKA_COPYRIGHT: Copyright 2015-2026, Renzhi Li (aka. Belleve Invis, belleve@typeof.net).
   FUSION_VERSION: LXGW v1.530; Iosevka 34.9.1; ttfautohint (v1.8.4); Nerd Fonts 3.5.1
   LXGW_COPYRIGHT: Copyright 2021-2026 LXGW (https://github.com/lxgw/LxgwWenKai-Lite). Copyright 2020 The Klee Project Authors (https://github.com/fontworks-fonts/Klee)
   LXGW_WENKAI_LITE: https://github.com/lxgw/LxgwWenKai-Lite/releases/download/v1.530/LXGWWenKaiMonoLite-Regular.ttf
-  LXGW_WENKAI_LITE_MEDIUM: https://github.com/lxgw/LxgwWenKai-Lite/releases/download/v1.530/LXGWWenKaiMonoLite-Medium.ttf
-  PRAGMA_NAME: Pragmasevka Nerd Font Mono + LXGW WenKai Mono Lite
-  PRAGMA_ID: PragmasevkaNFM+LXGWMonoLite
-  PRAGMA: Pragmasevka
   SS05_NAME: IosevkaTermSS05 Nerd Font Mono + LXGW WenKai Mono Lite
   SS05_ID: IosevkaTermSS05NFM+LXGWWenKaiMonoLite
   SS05: IosevkaTermSS05
@@ -68,21 +61,16 @@ jobs:
         run: |
           npm install
           npm run build -- ttf::${{ matrix.fontName }}
-          npm run build -- ttf::${PRAGMA}
 
       - name: Patch Iosevka
         run: |
           for STYLE in Regular Bold Italic BoldItalic; do
             ./font-patcher --quiet --adjust-line-height --complete --careful -s iosevka/dist/${SS05}/TTF/${SS05}-${STYLE}.ttf
           done
-          for STYLE in Regular Italic; do
-            ./font-patcher --quiet --adjust-line-height --complete --careful -s iosevka/dist/${PRAGMA}/TTF/${PRAGMA}-${STYLE}.ttf
-          done
 
       - name: Download LXGWWenKaiMonoLite
         run: |
           wget -q ${LXGW_WENKAI_LITE}
-          wget -q ${LXGW_WENKAI_LITE_MEDIUM}
 
       - name: Download width.py & fuse_fonts.ff
         run: |
@@ -92,16 +80,12 @@ jobs:
       - name: Merge font by FontForge
         shell: bash
         run: |
-          # LXGW WenKai Lite 没有 Bold，粗体使用 Medium 近似
+          # 中文字体始终使用 LXGW Regular
           for STYLE in Regular Bold Italic "Bold Italic"; do
             SUFFIX="${STYLE// /}"
-            case "$STYLE" in
-              Bold|"Bold Italic") LXGW_FILE="LXGWWenKaiMonoLite-Medium.ttf" ;;
-              *) LXGW_FILE="LXGWWenKaiMonoLite-Regular.ttf" ;;
-            esac
 
             fontforge "fuse_fonts.ff" \
-              "$LXGW_FILE" \
+              "LXGWWenKaiMonoLite-Regular.ttf" \
               "${SS05}NerdFontMono-${SUFFIX}.ttf" \
               "$SS05_ID-$SUFFIX" \
               "$SS05_NAME" \
@@ -109,15 +93,6 @@ jobs:
               "$STYLE" \
               "$SS05_ID-${SUFFIX}.ttf"
           done
-
-          fontforge "fuse_fonts.ff" \
-            "LXGWWenKaiMonoLite-Regular.ttf" \
-            "${PRAGMA}NerdFontMono-Regular.ttf" \
-            "$PRAGMA_ID-Regular" \
-            "$PRAGMA_NAME" \
-            "$PRAGMA_NAME Regular" \
-            "Regular" \
-            "$PRAGMA_ID-Regular.ttf"
 
       - name: Set tag name env
         run: |
@@ -129,7 +104,6 @@ jobs:
           for STYLE in Regular Bold Italic BoldItalic; do
             python width.py -f 520 ${SS05}NerdFontMono-${STYLE}.ttf -l -200 -n 30
           done
-          python width.py -f 520 ${PRAGMA}NerdFontMono-Regular.ttf -l -200 -n 30
 
           for STYLE in Regular Bold Italic BoldItalic; do
             python width.py -m ${SS05_ID}-${STYLE}.ttf -o 1000 -t 1040 > /dev/null
@@ -151,27 +125,6 @@ jobs:
             mv "${SS05_ID}-${STYLE}.ttf.fix" "${SS05_ID}-${STYLE}.ttf"
           done
 
-          for STYLE in "Regular"; do
-            python width.py -m ${PRAGMA_ID}-${STYLE}.ttf -o 1000 -t 1040 > /dev/null
-            python width.py -m ${PRAGMA_ID}-${STYLE}-w1040.ttf -o 500 -t 520 > /dev/null
-            mv ${PRAGMA_ID}-${STYLE}-w1040-w520.ttf ${PRAGMA_ID}-${STYLE}.ttf
-            python width.py -f 520 ${PRAGMA_ID}-${STYLE}.ttf -l -200 -n 30 -a 1040
-
-            gftools update-nameids "${PRAGMA_ID}-${STYLE}.ttf" \
-              --uniqueid "$PRAGMA_ID-$STYLE-$NOW" \
-              --designer "$FUSION_DEVELOPER" \
-              --manufacturer "$FUSION_DEVELOPER" \
-              --trademark "$PRAGMA_NAME" \
-              --version "$NOW; $FUSION_VERSION" \
-              --copyright "$(echo -e "$IOSEVKA_COPYRIGHT\n$LXGW_COPYRIGHT\n$FUSION_COPYRIGHT")" \
-              --license "$FUSION_LICENSE" \
-              --urlvendor "${{ github.server_url }}/${{ github.repository }}" \
-              --urldesigner "https://www.albertzhou.net" \
-              --urllicense "https://openfontlicense.org"
-            mv "${PRAGMA_ID}-${STYLE}.ttf.fix" "${PRAGMA_ID}-${STYLE}.ttf"
-          done
-
-
       - name: Generate artifact info
         run: |
           echo 'release_body<<EOF' >> $GITHUB_ENV
@@ -179,36 +132,14 @@ jobs:
           cd ..
 
           # Print font info.
+          echo "# Font Info:" >> $GITHUB_ENV
           for STYLE in Regular Bold Italic BoldItalic; do
-            echo "" >> $GITHUB_ENV
-            echo "# Font Info:" >> $GITHUB_ENV
-            echo "* ${SS05}NerdFontMono-${STYLE}.ttf:" >> $GITHUB_ENV
-            echo "\`\`\`" >> $GITHUB_ENV
-            python width.py -c ${SS05}NerdFontMono-${STYLE}.ttf >> $GITHUB_ENV
-            echo "\`\`\`" >> $GITHUB_ENV
-
             echo "" >> $GITHUB_ENV
             echo "* ${SS05_ID}-${STYLE}.ttf:" >> $GITHUB_ENV
             echo "\`\`\`" >> $GITHUB_ENV
             python width.py -c ${SS05_ID}-${STYLE}.ttf >> $GITHUB_ENV
             echo "\`\`\`" >> $GITHUB_ENV
           done
-
-          for STYLE in "Regular"; do
-            echo "" >> $GITHUB_ENV
-            # echo "# Font Info:" >> $GITHUB_ENV
-            echo "* ${PRAGMA}NerdFontMono-${STYLE}.ttf:" >> $GITHUB_ENV
-            echo "\`\`\`" >> $GITHUB_ENV
-            python width.py -c ${PRAGMA}NerdFontMono-${STYLE}.ttf >> $GITHUB_ENV
-            echo "\`\`\`" >> $GITHUB_ENV
-
-            echo "" >> $GITHUB_ENV
-            echo "* ${PRAGMA_ID}-${STYLE}.ttf:" >> $GITHUB_ENV
-            echo "\`\`\`" >> $GITHUB_ENV
-            python width.py -c ${PRAGMA_ID}-${STYLE}.ttf >> $GITHUB_ENV
-            echo "\`\`\`" >> $GITHUB_ENV
-          done
-
 
           echo 'EOF' >> $GITHUB_ENV
 
@@ -230,11 +161,9 @@ jobs:
 
             3. `Iosevka`字体编译时使能`TXTR`特性，即Monaspace字体的`text healing`。
 
-            4. 中文字体是[霞鹜文楷Lite等宽](${{ env.LXGW_WENKAI_LITE }})，粗体使用[霞鹜文楷Lite等宽 Medium](${{ env.LXGW_WENKAI_LITE_MEDIUM }})。
+            4. 中文字体是[霞鹜文楷Lite等宽](${{ env.LXGW_WENKAI_LITE }})，各字重均使用 Regular。
 
             5. FiraCode风格中英文合并字体（常规、粗体、斜体、粗斜体）：[${{ env.SS05_ID }}-Regular.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-Regular.ttf)、[${{ env.SS05_ID }}-Bold.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-Bold.ttf)、[${{ env.SS05_ID }}-Italic.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-Italic.ttf)、[${{ env.SS05_ID }}-BoldItalic.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-BoldItalic.ttf)。
-
-            6. Pragma风格的中英文合并字体是[${{ env.PRAGMA_ID }}-Regular.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.PRAGMA_ID }}-Regular.ttf)。
 
             ![IosevkaTermSS05NFM+LXGWWenKaiMonoLite-Regular-demo](https://github.com/georgealbert/MyNerdFonts/blob/main/screenshots/IosevkaTermSS05NFM%2BLXGWWenKaiMonoLite-Regular-demo.png)
             Iosevka原版和改版对比：
@@ -247,20 +176,7 @@ jobs:
             [Github Workflow #${{ github.run_number }}](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
 
           files: |
-            iosevka/dist/${{ env.SS05 }}/TTF/${{ env.SS05 }}-Regular.ttf
-            iosevka/dist/${{ env.SS05 }}/TTF/${{ env.SS05 }}-Bold.ttf
-            iosevka/dist/${{ env.SS05 }}/TTF/${{ env.SS05 }}-Italic.ttf
-            iosevka/dist/${{ env.SS05 }}/TTF/${{ env.SS05 }}-BoldItalic.ttf
-            iosevka/dist/${{ env.PRAGMA }}/TTF/${{ env.PRAGMA }}-Regular.ttf
-            iosevka/dist/${{ env.PRAGMA }}/TTF/${{ env.PRAGMA }}-Italic.ttf
-            ${{ env.SS05 }}NerdFontMono-Regular.ttf
-            ${{ env.SS05 }}NerdFontMono-Bold.ttf
-            ${{ env.SS05 }}NerdFontMono-Italic.ttf
-            ${{ env.SS05 }}NerdFontMono-BoldItalic.ttf
-            ${{ env.PRAGMA }}NerdFontMono-Regular.ttf
-            ${{ env.PRAGMA }}NerdFontMono-Italic.ttf
             ${{ env.SS05_ID }}-Regular.ttf
             ${{ env.SS05_ID }}-Bold.ttf
             ${{ env.SS05_ID }}-Italic.ttf
             ${{ env.SS05_ID }}-BoldItalic.ttf
-            ${{ env.PRAGMA_ID }}-Regular.ttf
