@@ -41,18 +41,32 @@ jobs:
         with:
           node-version: lts/*
 
-      - name: Install ttfautohint
+      - name: Install build dependencies
         shell: bash
         run: |
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends ttfautohint
+          set -euo pipefail
 
-      - name: Install deps for Nerd Font Patcher
-        run: sudo apt update && sudo apt install -y fontforge python3-fontforge python3-fonttools p7zip jq gftools
+          # GitHub Runner 偶尔会 DNS 解析失败，失败后自动重试
+          retry() {
+            local attempt=1
+            until "$@"; do
+              if [ "$attempt" -ge 5 ]; then
+                echo "Command failed after $attempt attempts: $*" >&2
+                return 1
+              fi
+              attempt=$((attempt + 1))
+              echo "Attempt $((attempt - 1))/5 failed, retrying in 10s..."
+              sleep 10
+            done
+          }
+
+          retry sudo apt-get -o Acquire::Retries=5 update
+          retry sudo apt-get -o Acquire::Retries=5 install -y --no-install-recommends ttfautohint
+          retry sudo apt-get -o Acquire::Retries=5 install -y fontforge python3-fontforge python3-fonttools p7zip jq gftools
 
       - name: Download Nerd Font Patcher
         run: |
-          wget -q https://github.com/ryanoasis/nerd-fonts/raw/refs/heads/master/FontPatcher.zip
+          wget -q --tries=5 --retry-connrefused --waitretry=5 https://github.com/ryanoasis/nerd-fonts/raw/refs/heads/master/FontPatcher.zip
           unzip FontPatcher.zip
 
       - name: Build Font ${{ matrix.fontName }}
@@ -70,12 +84,12 @@ jobs:
 
       - name: Download LXGWWenKaiMonoLite
         run: |
-          wget -q ${LXGW_WENKAI_LITE}
+          wget -q --tries=5 --retry-connrefused --waitretry=5 ${LXGW_WENKAI_LITE}
 
       - name: Download width.py & fuse_fonts.ff
         run: |
-          wget -q https://github.com/georgealbert/MyNerdFonts/raw/refs/heads/main/width.py
-          wget -q https://github.com/georgealbert/MyNerdFonts/raw/refs/heads/main/fuse_fonts.ff
+          wget -q --tries=5 --retry-connrefused --waitretry=5 https://github.com/georgealbert/MyNerdFonts/raw/refs/heads/main/width.py
+          wget -q --tries=5 --retry-connrefused --waitretry=5 https://github.com/georgealbert/MyNerdFonts/raw/refs/heads/main/fuse_fonts.ff
 
       - name: Merge font by FontForge
         shell: bash
