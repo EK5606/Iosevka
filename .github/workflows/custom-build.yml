@@ -14,6 +14,9 @@ env:
   FUSION_VERSION: LXGW v1.530; Iosevka 34.9.1; ttfautohint (v1.8.4); Nerd Fonts 3.5.1
   LXGW_COPYRIGHT: Copyright 2021-2026 LXGW (https://github.com/lxgw/LxgwWenKai-Lite). Copyright 2020 The Klee Project Authors (https://github.com/fontworks-fonts/Klee)
   LXGW_WENKAI_LITE: https://github.com/lxgw/LxgwWenKai-Lite/releases/download/v1.530/LXGWWenKaiMonoLite-Regular.ttf
+  PRAGMA_NAME: Pragmasevka Nerd Font Mono + LXGW WenKai Mono Lite
+  PRAGMA_ID: PragmasevkaNFM+LXGWMonoLite
+  PRAGMA: Pragmasevka
   SS05_NAME: IosevkaTermSS05 Nerd Font Mono + LXGW WenKai Mono Lite
   SS05_ID: IosevkaTermSS05NFM+LXGWWenKaiMonoLite
   SS05: IosevkaTermSS05
@@ -75,11 +78,15 @@ jobs:
         run: |
           npm install
           npm run build -- ttf::${{ matrix.fontName }}
+          npm run build -- ttf::${PRAGMA}
 
       - name: Patch Iosevka
         run: |
           for STYLE in Regular Bold Italic BoldItalic; do
             ./font-patcher --quiet --adjust-line-height --complete --careful -s iosevka/dist/${SS05}/TTF/${SS05}-${STYLE}.ttf
+          done
+          for STYLE in Regular Bold Italic BoldItalic; do
+            ./font-patcher --quiet --adjust-line-height --complete --careful -s iosevka/dist/${PRAGMA}/TTF/${PRAGMA}-${STYLE}.ttf
           done
 
       - name: Download LXGWWenKaiMonoLite
@@ -108,6 +115,19 @@ jobs:
               "$SS05_ID-${SUFFIX}.ttf"
           done
 
+          for STYLE in Regular Bold Italic "Bold Italic"; do
+            SUFFIX="${STYLE// /}"
+
+            fontforge "fuse_fonts.ff" \
+              "LXGWWenKaiMonoLite-Regular.ttf" \
+              "${PRAGMA}NerdFontMono-${SUFFIX}.ttf" \
+              "$PRAGMA_ID-$SUFFIX" \
+              "$PRAGMA_NAME" \
+              "$PRAGMA_NAME $STYLE" \
+              "$STYLE" \
+              "$PRAGMA_ID-${SUFFIX}.ttf"
+          done
+
       - name: Set tag name env
         run: |
           echo "NOW=v$(TZ='Asia/Shanghai' date +'%Y%m%d.%H%M%S')" >> $GITHUB_ENV
@@ -117,6 +137,9 @@ jobs:
           # Fix Iosevka font agvCharWidth.
           for STYLE in Regular Bold Italic BoldItalic; do
             python width.py -f 520 ${SS05}NerdFontMono-${STYLE}.ttf -l -200 -n 30
+          done
+          for STYLE in Regular Bold Italic BoldItalic; do
+            python width.py -f 520 ${PRAGMA}NerdFontMono-${STYLE}.ttf -l -200 -n 30
           done
 
           for STYLE in Regular Bold Italic BoldItalic; do
@@ -139,6 +162,26 @@ jobs:
             mv "${SS05_ID}-${STYLE}.ttf.fix" "${SS05_ID}-${STYLE}.ttf"
           done
 
+          for STYLE in Regular Bold Italic BoldItalic; do
+            python width.py -m ${PRAGMA_ID}-${STYLE}.ttf -o 1000 -t 1040 > /dev/null
+            python width.py -m ${PRAGMA_ID}-${STYLE}-w1040.ttf -o 500 -t 520 > /dev/null
+            mv ${PRAGMA_ID}-${STYLE}-w1040-w520.ttf ${PRAGMA_ID}-${STYLE}.ttf
+            python width.py -f 520 ${PRAGMA_ID}-${STYLE}.ttf -l -200 -n 30 -a 1040
+
+            gftools update-nameids "${PRAGMA_ID}-${STYLE}.ttf" \
+              --uniqueid "$PRAGMA_ID-$STYLE-$NOW" \
+              --designer "$FUSION_DEVELOPER" \
+              --manufacturer "$FUSION_DEVELOPER" \
+              --trademark "$PRAGMA_NAME" \
+              --version "$NOW; $FUSION_VERSION" \
+              --copyright "$(echo -e "$IOSEVKA_COPYRIGHT\n$LXGW_COPYRIGHT\n$FUSION_COPYRIGHT")" \
+              --license "$FUSION_LICENSE" \
+              --urlvendor "${{ github.server_url }}/${{ github.repository }}" \
+              --urldesigner "https://www.albertzhou.net" \
+              --urllicense "https://openfontlicense.org"
+            mv "${PRAGMA_ID}-${STYLE}.ttf.fix" "${PRAGMA_ID}-${STYLE}.ttf"
+          done
+
       - name: Generate artifact info
         run: |
           echo 'release_body<<EOF' >> $GITHUB_ENV
@@ -152,6 +195,14 @@ jobs:
             echo "* ${SS05_ID}-${STYLE}.ttf:" >> $GITHUB_ENV
             echo "\`\`\`" >> $GITHUB_ENV
             python width.py -c ${SS05_ID}-${STYLE}.ttf >> $GITHUB_ENV
+            echo "\`\`\`" >> $GITHUB_ENV
+          done
+
+          for STYLE in Regular Bold Italic BoldItalic; do
+            echo "" >> $GITHUB_ENV
+            echo "* ${PRAGMA_ID}-${STYLE}.ttf:" >> $GITHUB_ENV
+            echo "\`\`\`" >> $GITHUB_ENV
+            python width.py -c ${PRAGMA_ID}-${STYLE}.ttf >> $GITHUB_ENV
             echo "\`\`\`" >> $GITHUB_ENV
           done
 
@@ -179,6 +230,8 @@ jobs:
 
             5. FiraCode风格中英文合并字体（常规、粗体、斜体、粗斜体）：[${{ env.SS05_ID }}-Regular.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-Regular.ttf)、[${{ env.SS05_ID }}-Bold.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-Bold.ttf)、[${{ env.SS05_ID }}-Italic.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-Italic.ttf)、[${{ env.SS05_ID }}-BoldItalic.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.SS05_ID }}-BoldItalic.ttf)。
 
+            6. Pragma风格的中英文合并字体（常规、粗体、斜体、粗斜体）：[${{ env.PRAGMA_ID }}-Regular.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.PRAGMA_ID }}-Regular.ttf)、[${{ env.PRAGMA_ID }}-Bold.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.PRAGMA_ID }}-Bold.ttf)、[${{ env.PRAGMA_ID }}-Italic.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.PRAGMA_ID }}-Italic.ttf)、[${{ env.PRAGMA_ID }}-BoldItalic.ttf](${{ github.server_url }}/${{ github.repository }}/releases/download/${{ env.NOW }}/${{ env.PRAGMA_ID }}-BoldItalic.ttf)。
+
             ![IosevkaTermSS05NFM+LXGWWenKaiMonoLite-Regular-demo](https://github.com/georgealbert/MyNerdFonts/blob/main/screenshots/IosevkaTermSS05NFM%2BLXGWWenKaiMonoLite-Regular-demo.png)
             Iosevka原版和改版对比：
             ![Iosevka_diff](https://github.com/georgealbert/MyNerdFonts/blob/main/screenshots/character.png)
@@ -194,3 +247,7 @@ jobs:
             ${{ env.SS05_ID }}-Bold.ttf
             ${{ env.SS05_ID }}-Italic.ttf
             ${{ env.SS05_ID }}-BoldItalic.ttf
+            ${{ env.PRAGMA_ID }}-Regular.ttf
+            ${{ env.PRAGMA_ID }}-Bold.ttf
+            ${{ env.PRAGMA_ID }}-Italic.ttf
+            ${{ env.PRAGMA_ID }}-BoldItalic.ttf
